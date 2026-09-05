@@ -1,0 +1,92 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pysemi"
+version = "0.3.0"
+authors = [
+    {name = "Thomas Michel", email = "thomas.michel.thmi@gmail.com"},
+]
+description = "Sequential Membership Inference (SeMI) attacks for auditing models that go through multiple updates"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.9"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Security :: Cryptography",
+]
+keywords = [
+    "membership inference",
+    "sequential testing",
+    "privacy auditing",
+    "differential privacy",
+    "machine learning",
+]
+
+dependencies = [
+    "numpy>=1.20",
+    "scipy>=1.7",
+]
+
+[project.optional-dependencies]
+torch = ["torch>=1.10"]
+analysis = ["matplotlib>=3.5"]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "ruff>=0.1",
+    "black>=22.0",
+    "mypy>=1.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/Thomick/pysemi"
+Repository = "https://github.com/Thomick/pysemi"
+"Bug Tracker" = "https://github.com/Thomick/pysemi/issues"
+
+[tool.setuptools.packages.find]
+include = ["pysemi*"]
+exclude = ["tests*", "examples*", "docs*"]
+
+[tool.setuptools.package-data]
+pysemi = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = ["--strict-markers", "-v"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_unused_ignores = true
+warn_redundant_casts = true
+no_implicit_optional = true
+
+[[tool.mypy.overrides]]
+module = ["scipy.*", "torch.*"]
+ignore_missing_imports = true
+
+[tool.black]
+line-length = 100
+target-version = ["py39"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]
+
+[tool.coverage.run]
+source = ["pysemi"]
+omit = ["*/tests/*"]
