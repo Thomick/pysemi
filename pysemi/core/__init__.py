@@ -7,6 +7,7 @@ from .dp import (
     compute_noisy_log_lr_tau,
     compute_noisy_log_lr_unif,
     laplace_sensitivity_clipping,
+    laplace_sensitivity_range,
     simulate_noisy_empirical_means,
 )
 from .noisy_mean import (
@@ -46,4 +47,5 @@ __all__ = [
     "compute_noisy_log_lr_unif",
     "simulate_noisy_empirical_means",
     "laplace_sensitivity_clipping",
+    "laplace_sensitivity_range",
 ]

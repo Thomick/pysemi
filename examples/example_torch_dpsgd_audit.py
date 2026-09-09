@@ -362,7 +362,7 @@ def main():
             include_canary=False,
         )
 
-        # Clip the canary gradient too: the plug-in formula assumes unclipped
+        # Clip the canary gradient too. The plug-in formula assumes unclipped
         # Gaussian gradients but DP-SGD only uses each per-sample gradient up to
         # L2 norm C. Without the match δ_g and m⋆ are over-estimated.
         common_h1 = dict(

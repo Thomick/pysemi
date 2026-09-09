@@ -208,7 +208,6 @@ class SeMIStarDP(SeMIStar):
         )
 
     def power(self, alpha: float, T: int, tau: int) -> float:
-        # Override the inherited (non-DP) closed-form; estimate empirically instead.
         raise NotImplementedError(
             "Closed-form power for SeMIStarDP is not available. "
             "Estimate empirically: simulate H0/H1 trajectories and threshold log_lr "

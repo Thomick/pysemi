@@ -106,7 +106,8 @@ def compute_epsilon_lower_bound_cp(
     if len(fpr) == 0:
         return 0.0
 
-    # Discard ROC points whose FPR is below the resolution of n_h0 draws.
+    # Floor on the ratio's denominator. Below a tenth of one observation's worth
+    # of rate the Clopper-Pearson limit is noise and the log ratio blows up.
     min_rate = 0.1 / n_h0
     fp = np.round(fpr * n_h0).astype(int)
     tn = n_h0 - fp

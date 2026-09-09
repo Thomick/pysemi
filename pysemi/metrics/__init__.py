@@ -10,6 +10,7 @@ from .privacy_audit import (
     compute_epsilon_lower_bound_cp_stratified,
     compute_epsilon_lower_bound_dkw,
     compute_epsilon_lower_bound_dkw_stratified,
+    cp_upper,
     subsample_epsilon_ci,
     subsample_epsilon_samples,
 )
@@ -29,6 +30,7 @@ __all__ = [
     "compute_balanced_accuracy",
     "clopper_pearson_interval",
     "calibrate_threshold_grid",
+    "cp_upper",
     "compute_epsilon_lower_bound_cp",
     "compute_epsilon_lower_bound_cp_grid",
     "compute_epsilon_lower_bound_dkw",

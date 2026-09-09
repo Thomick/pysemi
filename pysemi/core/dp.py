@@ -187,10 +187,9 @@ def simulate_noisy_empirical_means(
             batch = rng.normal(mu, sigma, n)
         cum_sum += float(np.sum(batch))
         cum_count += n
-        # One draw per batch, carried forward: each record is noised once, so the
-        # whole sequence is ε-DP by parallel composition over the disjoint batches.
-        # Drawing fresh noise per release instead would make N_t a difference of
-        # two Laplace variables and break the density compute_noisy_log_lr_t uses.
+        # Drawing fresh noise per release instead of carrying it forward would leave
+        # N_t a difference of two Laplace variables, which is not the density
+        # compute_noisy_log_lr_t evaluates, and would cost parallel composition.
         cum_noise += float(rng.laplace(0.0, scale))
         out.append(cum_sum / cum_count + cum_noise / t)
     return out
