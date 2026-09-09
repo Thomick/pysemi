@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=77.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "pysemi"
-version = "0.3.0"
+version = "0.4.0"
 authors = [
     {name = "Thomas Michel", email = "thomas.michel.thmi@gmail.com"},
 ]
@@ -21,6 +21,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Mathematics",
     "Topic :: Security :: Cryptography",
 ]
@@ -66,7 +67,6 @@ python_files = ["test_*.py"]
 addopts = ["--strict-markers", "-v"]
 
 [tool.mypy]
-python_version = "3.10"
 warn_unused_ignores = true
 warn_redundant_casts = true
 no_implicit_optional = true
@@ -86,6 +86,10 @@ target-version = "py39"
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]
 ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# torch is imported through pytest.importorskip, so its imports cannot be at the top.
+"tests/test_torch.py" = ["E402"]
 
 [tool.coverage.run]
 source = ["pysemi"]

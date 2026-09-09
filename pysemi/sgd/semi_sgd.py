@@ -68,8 +68,14 @@ class SeMISGD:
         delta_g = grad_star - self.mu_g
         m_star = float(delta_g @ self.sigma_inv @ delta_g)
         return plugin_log_lr_at_tau(
-            theta_prev, theta_curr, self.eta, self.n_batch,
-            self.mu_g, self.sigma_inv, delta_g, m_star,
+            theta_prev,
+            theta_curr,
+            self.eta,
+            self.n_batch,
+            self.mu_g,
+            self.sigma_inv,
+            delta_g,
+            m_star,
         )
 
     def log_lr(self, tau: int, x_star: np.ndarray, y_star) -> float:

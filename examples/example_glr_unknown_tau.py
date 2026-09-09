@@ -1,4 +1,4 @@
-"""SeMI^max vs SeMI^unif vs FinalObservation under random τ (mirror of exp2).
+"""SeMI^max vs SeMI^unif vs FinalObservation under random τ.
 
 Compares the GLR variant SeMI^max, the uniform-prior variant SeMI^unif, and the
 FinalObservation snapshot baseline by ROC and AUC when τ is drawn uniformly at

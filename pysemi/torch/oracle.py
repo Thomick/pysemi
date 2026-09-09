@@ -50,9 +50,11 @@ class TorchOracle:
                 self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.module.to(self.device)
         self._params = _resolve_params(module, param_names)
-        self._param_names = list(param_names) if param_names is not None else [
-            name for name, p in module.named_parameters() if p.requires_grad
-        ]
+        self._param_names = (
+            list(param_names)
+            if param_names is not None
+            else [name for name, p in module.named_parameters() if p.requires_grad]
+        )
         self._shapes = [tuple(p.shape) for p in self._params]
         self._sizes = [int(np.prod(s)) for s in self._shapes]
 
@@ -66,16 +68,16 @@ class TorchOracle:
 
     def get_params(self) -> np.ndarray:
         """Current parameter vector flattened in ``param_names`` order."""
-        return np.concatenate([
-            p.detach().cpu().numpy().reshape(-1).astype(np.float64) for p in self._params
-        ])
+        return np.concatenate(
+            [p.detach().cpu().numpy().reshape(-1).astype(np.float64) for p in self._params]
+        )
 
     def set_params(self, theta: np.ndarray) -> None:
         """Write a flat parameter vector back into the module."""
         offset = 0
         with torch.no_grad():
             for p, size, shape in zip(self._params, self._sizes, self._shapes):
-                chunk = theta[offset:offset + size].reshape(shape)
+                chunk = theta[offset : offset + size].reshape(shape)
                 p.copy_(torch.as_tensor(chunk, dtype=p.dtype, device=p.device))
                 offset += size
 
@@ -126,8 +128,8 @@ class TorchOracle:
         for i in range(X.shape[0]):
             for p in self._params:
                 p.grad = None
-            xi = X[i:i + 1]
-            yi = y[i:i + 1]
+            xi = X[i : i + 1]
+            yi = y[i : i + 1]
             loss = self.loss_fn(self.module(xi), yi)
             loss.backward()
             out[i] = self._flatten_grad()

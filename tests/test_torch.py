@@ -94,7 +94,7 @@ def test_estimate_gradient_stats_from_loader():
 
     def loader():
         for i in range(0, 40, 8):
-            yield X[i:i + 8], y[i:i + 8]
+            yield X[i : i + 8], y[i : i + 8]
 
     mu_g, sigma = estimate_gradient_stats_from_loader(oracle, loader(), theta, n_samples=20)
     assert mu_g.shape == (oracle.n_params,)
@@ -128,7 +128,8 @@ def test_torch_oracle_drives_semi_sgd():
     for t in range(1, T + 1):
         for _ in range(K):
             idx = rng.choice(n_train, batch, replace=False)
-            X_t = torch.as_tensor(Xb[idx]); y_t = torch.as_tensor(yb[idx])
+            X_t = torch.as_tensor(Xb[idx])
+            y_t = torch.as_tensor(yb[idx])
             if t == tau_star:
                 X_t = torch.cat([X_t, torch.as_tensor(x_star[None])])
                 y_t = torch.cat([y_t, torch.as_tensor([y_star], dtype=torch.long)])
@@ -147,7 +148,12 @@ def test_torch_oracle_drives_semi_sgd():
 
     eta_eff = pysemi.sgd.phase_effective_lr(lr=0.05, K=K, batch_size=batch + 1, pool_size=n_train)
     semi = pysemi.SeMISGD(
-        recorder.trajectory, oracle, mu_g, sigma_inv, eta=eta_eff, n_batch=batch + 1,
+        recorder.trajectory,
+        oracle,
+        mu_g,
+        sigma_inv,
+        eta=eta_eff,
+        n_batch=batch + 1,
     )
     score = semi.log_lr(tau=tau_star, x_star=x_star, y_star=y_star)
     assert np.isfinite(score)

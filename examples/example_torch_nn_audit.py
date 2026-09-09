@@ -3,7 +3,7 @@
 End-to-end example: trains a small MLP on synthetic 2-class data over T phases.
 Under H1 the canary z⋆ = (x⋆, y⋆) is inserted at a uniformly random phase τ;
 under H0 never. The last linear layer is the auditable parameter subset
-(matching exp17). Reports AUCs for SeMI^SGD known-τ, SeMI^SGD-max,
+(the last-layer audit of the paper). Reports AUCs for SeMI^SGD known-τ, SeMI^SGD-max,
 SeMI^SGD-unif, and the loss-only and Jagielski baselines.
 
 Requires PyTorch: `pip install pysemi[torch]`.
@@ -37,8 +37,10 @@ from pysemi.torch import (
 def build_model(in_dim: int, hidden: int, out_dim: int) -> nn.Module:
     """Small backbone + linear head; the head is the auditable layer."""
     return nn.Sequential(
-        nn.Linear(in_dim, hidden), nn.ReLU(),
-        nn.Linear(hidden, hidden), nn.ReLU(),
+        nn.Linear(in_dim, hidden),
+        nn.ReLU(),
+        nn.Linear(hidden, hidden),
+        nn.ReLU(),
         nn.Linear(hidden, out_dim),
     )
 
@@ -46,16 +48,19 @@ def build_model(in_dim: int, hidden: int, out_dim: int) -> nn.Module:
 def synthetic_data(n: int, in_dim: int, rng: np.random.Generator):
     """Two Gaussian blobs with small mean separation."""
     means = np.array([[-0.3], [0.3]]) * np.ones((1, in_dim))
-    X = np.vstack([
-        rng.standard_normal((n // 2, in_dim)) + means[0],
-        rng.standard_normal((n - n // 2, in_dim)) + means[1],
-    ]).astype(np.float32)
-    y = np.concatenate([np.zeros(n // 2, dtype=np.int64),
-                         np.ones(n - n // 2, dtype=np.int64)])
+    X = np.vstack(
+        [
+            rng.standard_normal((n // 2, in_dim)) + means[0],
+            rng.standard_normal((n - n // 2, in_dim)) + means[1],
+        ]
+    ).astype(np.float32)
+    y = np.concatenate([np.zeros(n // 2, dtype=np.int64), np.ones(n - n // 2, dtype=np.int64)])
     return X, y
 
 
-def pretrain_backbone(model: nn.Module, X: np.ndarray, y: np.ndarray, epochs: int = 3, lr: float = 1e-2):
+def pretrain_backbone(
+    model: nn.Module, X: np.ndarray, y: np.ndarray, epochs: int = 3, lr: float = 1e-2
+):
     """Pretrain the full model briefly to get a non-trivial backbone."""
     opt = torch.optim.Adam(model.parameters(), lr=lr)
     loss_fn = nn.CrossEntropyLoss()
@@ -79,15 +84,18 @@ def run_phase(
     model: nn.Module,
     optimizer: torch.optim.Optimizer,
     loss_fn,
-    X: np.ndarray, y: np.ndarray,
-    K: int, batch: int,
+    X: np.ndarray,
+    y: np.ndarray,
+    K: int,
+    batch: int,
     canary: tuple | None,
     rng: np.random.Generator,
 ):
     """K SGD steps; optionally inject (x⋆, y⋆) into every step."""
     for _ in range(K):
         idx = rng.choice(len(X), batch, replace=False)
-        X_t = torch.as_tensor(X[idx]); y_t = torch.as_tensor(y[idx])
+        X_t = torch.as_tensor(X[idx])
+        y_t = torch.as_tensor(y[idx])
         if canary is not None:
             x_star, y_star = canary
             X_t = torch.cat([X_t, torch.as_tensor(x_star[None])])
@@ -99,10 +107,17 @@ def run_phase(
 
 def simulate_run(
     rng_seed: int,
-    X: np.ndarray, y: np.ndarray,
-    x_star: np.ndarray, y_star: int,
-    T: int, K: int, batch: int, lr: float,
-    in_dim: int, hidden: int, out_dim: int,
+    X: np.ndarray,
+    y: np.ndarray,
+    x_star: np.ndarray,
+    y_star: int,
+    T: int,
+    K: int,
+    batch: int,
+    lr: float,
+    in_dim: int,
+    hidden: int,
+    out_dim: int,
     insert_at: int | None,
 ):
     """One paired training run; returns (trajectory, losses_on_target, oracle, eta_eff)."""
@@ -113,7 +128,8 @@ def simulate_run(
     oracle = TorchLastLayerOracle(model)
     freeze_backbone(model, oracle)
     optimizer = torch.optim.SGD(
-        (p for p in model.parameters() if p.requires_grad), lr=lr,
+        (p for p in model.parameters() if p.requires_grad),
+        lr=lr,
     )
     loss_fn = nn.CrossEntropyLoss()
 
@@ -123,8 +139,9 @@ def simulate_run(
     losses.append(oracle.loss(recorder.trajectory[-1], x_star[None], [y_star]))
     canary = (x_star, y_star)
     for t in range(1, T + 1):
-        run_phase(model, optimizer, loss_fn, X, y, K, batch,
-                  canary if (insert_at == t) else None, rng)
+        run_phase(
+            model, optimizer, loss_fn, X, y, K, batch, canary if (insert_at == t) else None, rng
+        )
         recorder.record()
         losses.append(oracle.loss(recorder.trajectory[-1], x_star[None], [y_star]))
     return recorder.trajectory, np.array(losses), oracle
@@ -155,26 +172,61 @@ def main():
     ref_oracle = TorchLastLayerOracle(ref_model)
     theta_bg = ref_oracle.get_params()
 
-    bg_loader = ((X[i:i + 32], y[i:i + 32]) for i in range(0, n_data, 32))
+    bg_loader = ((X[i : i + 32], y[i : i + 32]) for i in range(0, n_data, 32))
     mu_g, sigma = estimate_gradient_stats_from_loader(
-        ref_oracle, bg_loader, theta_bg, n_samples=300, jitter=1e-3,
+        ref_oracle,
+        bg_loader,
+        theta_bg,
+        n_samples=300,
+        jitter=1e-3,
     )
     sigma_inv = np.linalg.inv(sigma)
     eta_eff = pysemi.sgd.phase_effective_lr(lr=lr, K=K, batch_size=batch + 1, pool_size=n_data)
     print(f"η_eff = K·(batch/pool)·lr = {eta_eff:.4f}\n")
 
     print(f"Running {n_sims} paired H0/H1 simulations on an MLP with T = {T} phases...")
-    rec = {k: ([], []) for k in [
-        "SeMI^SGD (known τ)", "SeMI^SGD-max", "SeMI^SGD-unif",
-        "loss_diff at τ", "max_loss_diff", "delta_diff",
-    ]}
+    rec = {
+        k: ([], [])
+        for k in [
+            "SeMI^SGD (known τ)",
+            "SeMI^SGD-max",
+            "SeMI^SGD-unif",
+            "loss_diff at τ",
+            "max_loss_diff",
+            "delta_diff",
+        ]
+    }
     for s in range(n_sims):
         tau = int(rng.integers(1, T + 1))
         thetas_h1, losses_h1, oracle_h1 = simulate_run(
-            s, X, y, x_star, y_star, T, K, batch, lr, in_dim, hidden, out_dim, insert_at=tau,
+            s,
+            X,
+            y,
+            x_star,
+            y_star,
+            T,
+            K,
+            batch,
+            lr,
+            in_dim,
+            hidden,
+            out_dim,
+            insert_at=tau,
         )
         thetas_h0, losses_h0, oracle_h0 = simulate_run(
-            10000 + s, X, y, x_star, y_star, T, K, batch, lr, in_dim, hidden, out_dim, insert_at=None,
+            10000 + s,
+            X,
+            y,
+            x_star,
+            y_star,
+            T,
+            K,
+            batch,
+            lr,
+            in_dim,
+            hidden,
+            out_dim,
+            insert_at=None,
         )
 
         h1 = SeMISGD(thetas_h1, oracle_h1, mu_g, sigma_inv, eta=eta_eff, n_batch=batch + 1)

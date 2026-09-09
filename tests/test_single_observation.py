@@ -16,8 +16,14 @@ def test_final_obs_lr_finite():
 
 def test_final_obs_h1_greater_than_h0_on_average():
     rng = np.random.default_rng(0)
-    h0 = [simulate_final_observation(0.0, 1.0, 4.0, 200, include_target=False, rng=rng) for _ in range(500)]
-    h1 = [simulate_final_observation(0.0, 1.0, 4.0, 200, include_target=True, rng=rng) for _ in range(500)]
+    h0 = [
+        simulate_final_observation(0.0, 1.0, 4.0, 200, include_target=False, rng=rng)
+        for _ in range(500)
+    ]
+    h1 = [
+        simulate_final_observation(0.0, 1.0, 4.0, 200, include_target=True, rng=rng)
+        for _ in range(500)
+    ]
     assert np.mean(h1) > np.mean(h0)
 
 

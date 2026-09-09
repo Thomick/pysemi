@@ -25,13 +25,19 @@ def test_semi_star_h1_greater_than_h0_on_average():
     rng = np.random.default_rng(0)
     mu, sigma, z_star, n, T, tau = 0.0, 1.0, 3.0, 50, 10, 5
     h0 = [
-        compute_log_lr_tau(simulate_empirical_means(mu, sigma, n, T, rng=rng), mu, sigma, z_star, n, tau)
+        compute_log_lr_tau(
+            simulate_empirical_means(mu, sigma, n, T, rng=rng), mu, sigma, z_star, n, tau
+        )
         for _ in range(500)
     ]
     h1 = [
         compute_log_lr_tau(
             simulate_empirical_means(mu, sigma, n, T, z_star=z_star, tau_star=tau, rng=rng),
-            mu, sigma, z_star, n, tau,
+            mu,
+            sigma,
+            z_star,
+            n,
+            tau,
         )
         for _ in range(500)
     ]

@@ -31,9 +31,7 @@ def score_ratio(
     stability_constant: float = 0.0005,
 ) -> float:
     """``(c+L_before)/(c+L_after)``; >1 ⇒ loss dropped."""
-    return float(
-        (stability_constant + loss_before) / (stability_constant + loss_after)
-    )
+    return float((stability_constant + loss_before) / (stability_constant + loss_after))
 
 
 def back_front_attack(losses: np.ndarray, method: str = "ratio") -> float:

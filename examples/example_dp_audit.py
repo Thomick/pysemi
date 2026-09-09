@@ -1,4 +1,4 @@
-"""DP SeMI* privacy audit: empirical ε lower bound vs. true budget (echo of exp15).
+"""DP SeMI* privacy audit, empirical ε lower bound vs. true budget.
 
 For a Laplace mechanism releasing the running mean at each batch, we run the DP
 SeMI^max attack and report the Clopper-Pearson and DKW lower bounds on ε.

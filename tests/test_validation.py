@@ -47,14 +47,22 @@ def test_semi_sgd_rejects_mismatched_shapes():
     # mu_g has wrong dim
     with pytest.raises(ValueError, match="mu_g"):
         pysemi.SeMISGD(
-            thetas, oracle, mu_g=np.zeros(2), sigma_inv=np.eye(3),
-            eta=0.1, n_batch=10,
+            thetas,
+            oracle,
+            mu_g=np.zeros(2),
+            sigma_inv=np.eye(3),
+            eta=0.1,
+            n_batch=10,
         )
     # sigma_inv has wrong dim
     with pytest.raises(ValueError, match="sigma_inv"):
         pysemi.SeMISGD(
-            thetas, oracle, mu_g=np.zeros(3), sigma_inv=np.eye(2),
-            eta=0.1, n_batch=10,
+            thetas,
+            oracle,
+            mu_g=np.zeros(3),
+            sigma_inv=np.eye(2),
+            eta=0.1,
+            n_batch=10,
         )
 
 
@@ -63,8 +71,12 @@ def test_semi_sgd_rejects_inconsistent_trajectory():
     thetas = [np.zeros(3), np.zeros(4)]  # mismatched
     with pytest.raises(ValueError, match="theta_trajectory"):
         pysemi.SeMISGD(
-            thetas, oracle, mu_g=np.zeros(3), sigma_inv=np.eye(3),
-            eta=0.1, n_batch=10,
+            thetas,
+            oracle,
+            mu_g=np.zeros(3),
+            sigma_inv=np.eye(3),
+            eta=0.1,
+            n_batch=10,
         )
 
 
@@ -73,8 +85,12 @@ def test_semi_sgd_rejects_bad_eta(eta):
     oracle = LinearRegressionOracle()
     with pytest.raises(ValueError, match="eta"):
         pysemi.SeMISGD(
-            [np.zeros(3), np.zeros(3)], oracle, mu_g=np.zeros(3), sigma_inv=np.eye(3),
-            eta=eta, n_batch=10,
+            [np.zeros(3), np.zeros(3)],
+            oracle,
+            mu_g=np.zeros(3),
+            sigma_inv=np.eye(3),
+            eta=eta,
+            n_batch=10,
         )
 
 
@@ -82,7 +98,13 @@ def test_repr_is_informative():
     assert "SeMIStar" in repr(pysemi.SeMIStar(0.0, 1.0, 2.0, 10))
     assert "epsilon" in repr(pysemi.SeMIStarDP(0.0, 1.0, 2.0, 10, epsilon=1.0))
     assert "FinalObservation" in repr(pysemi.FinalObservation(0.0, 1.0, 2.0, 10, 5))
-    assert "SeMISGD" in repr(pysemi.SeMISGD(
-        [np.zeros(3), np.zeros(3)], LinearRegressionOracle(),
-        np.zeros(3), np.eye(3), eta=0.1, n_batch=10,
-    ))
+    assert "SeMISGD" in repr(
+        pysemi.SeMISGD(
+            [np.zeros(3), np.zeros(3)],
+            LinearRegressionOracle(),
+            np.zeros(3),
+            np.eye(3),
+            eta=0.1,
+            n_batch=10,
+        )
+    )

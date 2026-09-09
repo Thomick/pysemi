@@ -20,9 +20,7 @@ def loss_ratio_at_tau(
     """``(c + L_{τ-1}) / (c + L_τ)``; >1 ⇒ more likely member."""
     if tau < 1 or tau >= len(losses):
         return 1.0
-    return float(
-        (stability_constant + losses[tau - 1]) / (stability_constant + losses[tau])
-    )
+    return float((stability_constant + losses[tau - 1]) / (stability_constant + losses[tau]))
 
 
 def max_loss_diff(losses: np.ndarray) -> Tuple[float, int]:
@@ -43,9 +41,11 @@ def max_loss_ratio(
     T = len(losses) - 1
     if T < 1:
         return 1.0, 0
-    ratios = np.array([
-        (stability_constant + losses[t - 1]) / (stability_constant + losses[t])
-        for t in range(1, T + 1)
-    ])
+    ratios = np.array(
+        [
+            (stability_constant + losses[t - 1]) / (stability_constant + losses[t])
+            for t in range(1, T + 1)
+        ]
+    )
     best = int(np.argmax(ratios))
     return float(ratios[best]), best + 1

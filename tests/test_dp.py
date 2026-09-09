@@ -18,6 +18,7 @@ from pysemi.core.noisy_mean import compute_log_lr_tau
 def test_convolution_log_pdf_matches_gaussian_in_no_noise_limit():
     z, mu, sigma = 0.3, 0.1, 0.5
     from scipy.stats import norm
+
     truth = float(norm.logpdf(z, loc=mu, scale=sigma))
     assert np.isclose(compute_log_prob_convolution(z, mu, sigma, b_L=1e-13), truth)
 
@@ -25,8 +26,14 @@ def test_convolution_log_pdf_matches_gaussian_in_no_noise_limit():
 def test_noisy_log_lr_t_finite():
     for eps in [0.1, 1.0, 10.0]:
         v = compute_noisy_log_lr_t(
-            mu_t=0.02, mu_t_minus_1=0.0, t=3, mu=0.0, sigma=1.0,
-            z_star=3.0, n=50, epsilon=eps,
+            mu_t=0.02,
+            mu_t_minus_1=0.0,
+            t=3,
+            mu=0.0,
+            sigma=1.0,
+            z_star=3.0,
+            n=50,
+            epsilon=eps,
         )
         assert np.isfinite(v)
 
@@ -41,14 +48,26 @@ def test_dp_semi_star_h1_greater_than_h0_on_average():
     h0 = [
         compute_noisy_log_lr_tau(
             simulate_noisy_empirical_means(mu, sigma, n, T, eps, rng=rng),
-            mu, sigma, z_star, n, tau, eps,
+            mu,
+            sigma,
+            z_star,
+            n,
+            tau,
+            eps,
         )
         for _ in range(300)
     ]
     h1 = [
         compute_noisy_log_lr_tau(
-            simulate_noisy_empirical_means(mu, sigma, n, T, eps, z_star=z_star, tau_star=tau, rng=rng),
-            mu, sigma, z_star, n, tau, eps,
+            simulate_noisy_empirical_means(
+                mu, sigma, n, T, eps, z_star=z_star, tau_star=tau, rng=rng
+            ),
+            mu,
+            sigma,
+            z_star,
+            n,
+            tau,
+            eps,
         )
         for _ in range(300)
     ]
@@ -84,7 +103,13 @@ def test_dp_collapses_to_clean_when_epsilon_large():
     mu, sigma, z_star, n, T, tau = 0.0, 1.0, 3.0, 30, 5, 3
     clean_means = pysemi.SeMIStar(mu, sigma, z_star, n).simulate(T, tau_star=tau, rng=rng)
     dp_lr = compute_noisy_log_lr_t(
-        clean_means[tau - 1], clean_means[tau - 2],
-        tau, mu, sigma, z_star, n, epsilon=1e6,
+        clean_means[tau - 1],
+        clean_means[tau - 2],
+        tau,
+        mu,
+        sigma,
+        z_star,
+        n,
+        epsilon=1e6,
     )
     assert np.isclose(dp_lr, compute_log_lr_tau(clean_means, mu, sigma, z_star, n, tau), atol=1e-3)

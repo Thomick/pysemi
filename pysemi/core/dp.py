@@ -1,4 +1,20 @@
-"""SeMI* under Laplace noise: Gaussian-Laplace convolution density and DP LR."""
+"""SeMI* under a Laplace-noised empirical-mean mechanism.
+
+The mechanism releases, at each phase t, the cumulative mean of the data seen so
+far with independent Laplace noise added once per batch and carried forward,
+
+    μ̂_t = (Σ_{i≤t} Σ_{j≤n} X_ij + Σ_{i≤t} ξ_i) / (nt),    ξ_i ~ Lap(n·Δ/ε),
+
+where Δ is the sensitivity of a single batch *mean*. Each record enters exactly
+one batch, so the released sequence is a post-processing of T independently
+noised, disjoint batch sums and the whole sequence is ε-DP by parallel
+composition. The statistic depends on the observations only through
+Ȳ_τ = μ̂_τ − ((τ−1)/τ)·μ̂_{τ−1} = X̄_τ/τ + ξ_τ/(nτ), a Gaussian plus a Laplace,
+whence the convolution density below.
+
+This analysis is not in the SeMI paper, which covers the noiseless mechanism and
+the DP-SGD audits. It is a library extension.
+"""
 
 from typing import List, Optional, Sequence, Tuple
 
@@ -8,8 +24,23 @@ from scipy.stats import norm
 
 
 def laplace_sensitivity_clipping(sigma: float, n: int) -> float:
-    """σ/√n: clipped-mean Laplace sensitivity used by the paper."""
+    """σ/√n, the batch-mean noise scale used by the examples.
+
+    This is a calibration convention rather than a derived sensitivity: it sets the
+    noise to the standard deviation of a clean batch mean, so ε reads as a
+    signal-to-noise ratio. For an actual ε-DP guarantee pass the sensitivity implied
+    by your clipping range, `laplace_sensitivity_range`.
+    """
     return float(sigma / np.sqrt(n))
+
+
+def laplace_sensitivity_range(clip_range: float, n: int) -> float:
+    """Sensitivity of a batch mean of n values confined to an interval of width ``clip_range``."""
+    if not np.isfinite(clip_range) or clip_range <= 0.0:
+        raise ValueError(f"clip_range must be positive and finite, got {clip_range!r}")
+    if n < 2:
+        raise ValueError(f"n (batch size) must be ≥ 2, got {n!r}")
+    return float(clip_range / n)
 
 
 def compute_log_prob_convolution(
@@ -98,12 +129,12 @@ def compute_noisy_log_lr_max(
 ) -> Tuple[float, int]:
     """DP SeMI^max statistic: ``(max_t log LR_t, argmax t)``."""
     T = len(noisy_means)
-    log_lrs = np.array([
-        compute_noisy_log_lr_tau(
-            noisy_means, mu, sigma, z_star, n, t, epsilon, sensitivity
-        )
-        for t in range(1, T + 1)
-    ])
+    log_lrs = np.array(
+        [
+            compute_noisy_log_lr_tau(noisy_means, mu, sigma, z_star, n, t, epsilon, sensitivity)
+            for t in range(1, T + 1)
+        ]
+    )
     best = int(np.argmax(log_lrs))
     return float(log_lrs[best]), best + 1
 
@@ -119,12 +150,12 @@ def compute_noisy_log_lr_unif(
 ) -> float:
     """DP SeMI^unif statistic: ``log (1/T) Σ_t LR_t``."""
     T = len(noisy_means)
-    log_lrs = np.array([
-        compute_noisy_log_lr_tau(
-            noisy_means, mu, sigma, z_star, n, t, epsilon, sensitivity
-        )
-        for t in range(1, T + 1)
-    ])
+    log_lrs = np.array(
+        [
+            compute_noisy_log_lr_tau(noisy_means, mu, sigma, z_star, n, t, epsilon, sensitivity)
+            for t in range(1, T + 1)
+        ]
+    )
     return float(logsumexp(log_lrs) - np.log(T))
 
 
@@ -139,7 +170,7 @@ def simulate_noisy_empirical_means(
     sensitivity: Optional[float] = None,
     rng: Optional[np.random.Generator] = None,
 ) -> List[float]:
-    """Simulate the cumulative means released with Laplace(σ/(ε√n)) noise at each phase."""
+    """Simulate the released sequence μ̂_t = (Σ_{i≤t} Σ_j X_ij + Σ_{i≤t} ξ_i) / (nt), ξ_i ~ Lap(n·Δ/ε)."""
     rng = np.random.default_rng() if rng is None else rng
     if sensitivity is None:
         sensitivity = laplace_sensitivity_clipping(sigma, n)
@@ -147,6 +178,7 @@ def simulate_noisy_empirical_means(
     out: List[float] = []
     cum_sum = 0.0
     cum_count = 0
+    cum_noise = 0.0
     for t in range(1, T + 1):
         if z_star is not None and tau_star is not None and t == tau_star:
             batch = rng.normal(mu, sigma, n - 1)
@@ -155,6 +187,10 @@ def simulate_noisy_empirical_means(
             batch = rng.normal(mu, sigma, n)
         cum_sum += float(np.sum(batch))
         cum_count += n
-        noisy = cum_sum / cum_count + float(rng.laplace(0.0, scale))
-        out.append(noisy)
+        # One draw per batch, carried forward: each record is noised once, so the
+        # whole sequence is ε-DP by parallel composition over the disjoint batches.
+        # Drawing fresh noise per release instead would make N_t a difference of
+        # two Laplace variables and break the density compute_noisy_log_lr_t uses.
+        cum_noise += float(rng.laplace(0.0, scale))
+        out.append(cum_sum / cum_count + cum_noise / t)
     return out

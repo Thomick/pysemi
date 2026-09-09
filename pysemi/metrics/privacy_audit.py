@@ -26,6 +26,59 @@ def clopper_pearson_interval(
     return lower, upper
 
 
+def cp_upper(successes: np.ndarray, trials: int, eta: float) -> np.ndarray:
+    """Clopper-Pearson upper limit, the 1−η quantile of Beta(x+1, m−x), with CP_up(m, m, η) = 1."""
+    x = np.asarray(successes)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        return np.where(x >= trials, 1.0, stats.beta.ppf(1 - eta, x + 1, trials - x))
+
+
+def calibrate_threshold_grid(stats_cal: np.ndarray, n_thresholds: int = 99) -> np.ndarray:
+    """Threshold grid for the audit: ``n_thresholds`` quantiles of held-out calibration statistics."""
+    if n_thresholds < 1:
+        raise ValueError(f"n_thresholds must be ≥ 1, got {n_thresholds!r}")
+    if len(stats_cal) == 0:
+        raise ValueError("stats_cal is empty")
+    levels = np.arange(1, n_thresholds + 1) / (n_thresholds + 1)
+    return np.quantile(np.asarray(stats_cal), levels)
+
+
+def compute_epsilon_lower_bound_cp_grid(
+    stats_h0: np.ndarray,
+    stats_h1: np.ndarray,
+    grid: np.ndarray,
+    delta: float = 1e-4,
+    xi: float = 0.02,
+) -> float:
+    """Audit lower bound on ε at confidence 1−ξ over a grid calibrated on held-out rounds.
+
+    Applies Clopper-Pearson upper limits at level ξ/(2K) to the Type-I and Type-II
+    errors at each of the K thresholds, leaving room for a union bound over the 2K
+    events, then maximizes log[(1−δ−ᾱ)/β̄] and its mirror over the grid. Valid only
+    if ``grid`` was built from rounds disjoint from ``stats_h0`` and ``stats_h1``.
+    Use `calibrate_threshold_grid` on a held-out split.
+    """
+    s0 = np.asarray(stats_h0)
+    s1 = np.asarray(stats_h1)
+    grid = np.atleast_1d(np.asarray(grid))
+    n0, n1, K = len(s0), len(s1), len(grid)
+    if n0 == 0 or n1 == 0:
+        raise ValueError("stats_h0 and stats_h1 must both be non-empty")
+    eta = xi / (2 * K)
+
+    # alpha(gamma) = P(S > gamma | H0), beta(gamma) = P(S <= gamma | H1).
+    fp = np.array([np.sum(s0 > g) for g in grid])
+    fn = np.array([np.sum(s1 <= g) for g in grid])
+    alpha_bar = cp_upper(fp, n0, eta)
+    beta_bar = cp_upper(fn, n1, eta)
+
+    with np.errstate(invalid="ignore", divide="ignore"):
+        r1 = np.where(beta_bar > 0, (1 - delta - alpha_bar) / beta_bar, 0.0)
+        r2 = np.where(alpha_bar > 0, (1 - delta - beta_bar) / alpha_bar, 0.0)
+    best = float(np.max(np.concatenate([r1, r2]), initial=0.0))
+    return max(0.0, float(np.log(best)) if best > 0 else 0.0)
+
+
 def compute_epsilon_lower_bound_cp(
     fpr: np.ndarray,
     tpr: np.ndarray,
@@ -35,7 +88,15 @@ def compute_epsilon_lower_bound_cp(
     confidence: float = 0.98,
     min_rate_floor: float = 0.0,
 ) -> float:
-    """Pointwise Clopper-Pearson lower bound on ε. Falls back to a point estimate when sizes are None."""
+    """Clopper-Pearson lower bound on ε, union-corrected over the ROC points supplied.
+
+    Clopper-Pearson limits are taken at level (1−``confidence``)/(2K) with K the number
+    of ROC points, so the maximum over them holds at confidence ``confidence``. The
+    thresholds behind an empirical ROC are quantiles of the same H0 statistics being
+    bounded, which the correction does not repair. `compute_epsilon_lower_bound_cp_grid`
+    with a held-out calibration grid is the protocol without that dependence. Falls back
+    to a point estimate when the sample sizes are None.
+    """
     if n_h0 is None or n_h1 is None:
         return _point_epsilon(fpr, tpr, delta, min_rate_floor)
 
@@ -45,12 +106,13 @@ def compute_epsilon_lower_bound_cp(
     if len(fpr) == 0:
         return 0.0
 
+    # Discard ROC points whose FPR is below the resolution of n_h0 draws.
     min_rate = 0.1 / n_h0
     fp = np.round(fpr * n_h0).astype(int)
     tn = n_h0 - fp
     tp = np.round(tpr * n_h1).astype(int)
     fn = n_h1 - tp
-    alpha = 1 - confidence
+    alpha = (1 - confidence) / len(fpr)
 
     with np.errstate(invalid="ignore", divide="ignore"):
         fpr_upper = np.where(fp == n_h0, 1.0, stats.beta.ppf(1 - alpha / 2, fp + 1, n_h0 - fp))
@@ -76,7 +138,7 @@ def _point_epsilon(
     delta: float = 1e-4,
     min_rate_floor: float = 0.0,
 ) -> float:
-    """Naive point estimate without CIs; for reference only."""
+    """Naive point estimate without CIs, for reference only."""
     if min_rate_floor > 0:
         keep = (fpr >= min_rate_floor) & (tpr >= min_rate_floor)
         fpr, tpr = fpr[keep], tpr[keep]
@@ -85,7 +147,9 @@ def _point_epsilon(
     mask = (fpr > 0) & (tpr > delta)
     eps1 = np.log((tpr[mask] - delta) / fpr[mask]) if np.any(mask) else np.array([])
     mask_c = (1 - fpr > 0) & (1 - tpr > delta)
-    eps2 = np.log(((1 - tpr)[mask_c] - delta) / (1 - fpr)[mask_c]) if np.any(mask_c) else np.array([])
+    eps2 = (
+        np.log(((1 - tpr)[mask_c] - delta) / (1 - fpr)[mask_c]) if np.any(mask_c) else np.array([])
+    )
     all_eps = np.concatenate([eps1, eps2])
     if len(all_eps) == 0:
         return 0.0
@@ -141,8 +205,11 @@ def compute_epsilon_lower_bound_cp_stratified(
     if n_per_stratum is None:
         raise ValueError("n_per_stratum is required for the stratified CP bound")
     return compute_epsilon_lower_bound_cp(
-        fpr, tpr, delta=delta,
-        n_h0=n_per_stratum, n_h1=n_per_stratum,
+        fpr,
+        tpr,
+        delta=delta,
+        n_h0=n_per_stratum,
+        n_h1=n_per_stratum,
         confidence=confidence,
         min_rate_floor=min_rate_floor,
     )
@@ -161,8 +228,11 @@ def compute_epsilon_lower_bound_dkw_stratified(
     if n_per_stratum is None:
         raise ValueError("n_per_stratum is required for the stratified DKW bound")
     return compute_epsilon_lower_bound_dkw(
-        fpr, tpr, delta=delta,
-        n_h0=n_per_stratum, n_h1=n_per_stratum,
+        fpr,
+        tpr,
+        delta=delta,
+        n_h0=n_per_stratum,
+        n_h1=n_per_stratum,
         xi=xi / (2 * max(1, T)),
         min_rate_floor=min_rate_floor,
     )
@@ -191,13 +261,22 @@ def bootstrap_epsilon_samples(
         fpr_b, tpr_b = compute_empirical_roc(h0[idx0], h1[idx1])
         if bound_type == "dkw":
             out[b] = compute_epsilon_lower_bound_dkw(
-                fpr_b, tpr_b, delta, n_eff, n_eff,
+                fpr_b,
+                tpr_b,
+                delta,
+                n_eff,
+                n_eff,
                 xi=dkw_xi / (2 * max(1, stratified_T)),
                 min_rate_floor=min_rate_floor,
             )
         else:
             out[b] = compute_epsilon_lower_bound_cp(
-                fpr_b, tpr_b, delta, n_eff, n_eff, confidence,
+                fpr_b,
+                tpr_b,
+                delta,
+                n_eff,
+                n_eff,
+                confidence,
                 min_rate_floor=min_rate_floor,
             )
     return out
@@ -218,8 +297,16 @@ def bootstrap_epsilon_ci(
 ) -> Tuple[float, float, float]:
     """(median, lo, hi) of the bootstrap ε lower-bound distribution."""
     samples = bootstrap_epsilon_samples(
-        h0, h1, delta, confidence, n_bootstrap, seed,
-        min_rate_floor, bound_type, dkw_xi, stratified_T,
+        h0,
+        h1,
+        delta,
+        confidence,
+        n_bootstrap,
+        seed,
+        min_rate_floor,
+        bound_type,
+        dkw_xi,
+        stratified_T,
     )
     a = (1 - ci_level) / 2
     return (
@@ -258,13 +345,22 @@ def subsample_epsilon_samples(
         fpr_b, tpr_b = compute_empirical_roc(h0[idx0], h1[idx1])
         if bound_type == "dkw":
             out[b] = compute_epsilon_lower_bound_dkw(
-                fpr_b, tpr_b, delta, n_eff, n_eff,
+                fpr_b,
+                tpr_b,
+                delta,
+                n_eff,
+                n_eff,
                 xi=dkw_xi / (2 * max(1, stratified_T)),
                 min_rate_floor=min_rate_floor,
             )
         else:
             out[b] = compute_epsilon_lower_bound_cp(
-                fpr_b, tpr_b, delta, n_eff, n_eff, confidence,
+                fpr_b,
+                tpr_b,
+                delta,
+                n_eff,
+                n_eff,
+                confidence,
                 min_rate_floor=min_rate_floor,
             )
     return out
@@ -286,8 +382,17 @@ def subsample_epsilon_ci(
 ) -> Tuple[float, float, float]:
     """(median, lo, hi) of the subsample ε lower-bound distribution."""
     samples = subsample_epsilon_samples(
-        h0, h1, delta, confidence, n_iters, seed,
-        min_rate_floor, bound_type, dkw_xi, stratified_T, subsample_frac,
+        h0,
+        h1,
+        delta,
+        confidence,
+        n_iters,
+        seed,
+        min_rate_floor,
+        bound_type,
+        dkw_xi,
+        stratified_T,
+        subsample_frac,
     )
     a = (1 - ci_level) / 2
     return (

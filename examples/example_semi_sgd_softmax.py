@@ -1,4 +1,4 @@
-"""SeMI^SGD on a numpy softmax last-layer audit (exp17-style, no PyTorch needed).
+"""SeMI^SGD on a numpy softmax last-layer audit, no PyTorch needed.
 
 Trains a numpy softmax classifier on synthetic 2-class Gaussian data over T
 phases. Under H1 the canary z⋆ = (x⋆, y⋆) is inserted at a uniformly random
@@ -60,8 +60,12 @@ def main():
 
     mean0 = -np.ones(input_dim) * 0.3
     mean1 = np.ones(input_dim) * 0.3
-    X = np.vstack([rng.standard_normal((n_total // 2, input_dim)) + mean0,
-                   rng.standard_normal((n_total // 2, input_dim)) + mean1])
+    X = np.vstack(
+        [
+            rng.standard_normal((n_total // 2, input_dim)) + mean0,
+            rng.standard_normal((n_total // 2, input_dim)) + mean1,
+        ]
+    )
     y = np.concatenate([np.zeros(n_total // 2, dtype=int), np.ones(n_total // 2, dtype=int)])
 
     x_star = np.ones(input_dim) * 5.0
@@ -70,25 +74,41 @@ def main():
     oracle = SoftmaxOracle(input_dim=input_dim, num_classes=num_classes)
 
     print("Estimating background gradient stats...")
-    bg = np.array([
-        oracle.grad_at(rng.standard_normal(oracle.n_params) * 0.05,
-                        X[int(rng.integers(0, n_total))], y[int(rng.integers(0, n_total))])
-        for _ in range(800)
-    ])
+    bg = np.array(
+        [
+            oracle.grad_at(
+                rng.standard_normal(oracle.n_params) * 0.05,
+                X[int(rng.integers(0, n_total))],
+                y[int(rng.integers(0, n_total))],
+            )
+            for _ in range(800)
+        ]
+    )
     mu_g, sigma = estimate_gradient_stats(bg, jitter=1e-3)
     sigma_inv = np.linalg.inv(sigma)
     eta_eff = pysemi.sgd.phase_effective_lr(lr=lr, K=K, batch_size=batch, pool_size=pool)
     print(f"η_eff = K·(batch/pool)·lr = {eta_eff:.4f}\n")
 
     print("Running paired H0/H1 simulations...")
-    rec = {k: ([], []) for k in [
-        "SeMI^SGD (known τ)", "SeMI^SGD-max", "SeMI^SGD-unif",
-        "loss_diff at τ", "max_loss_diff", "delta_diff",
-    ]}
+    rec = {
+        k: ([], [])
+        for k in [
+            "SeMI^SGD (known τ)",
+            "SeMI^SGD-max",
+            "SeMI^SGD-unif",
+            "loss_diff at τ",
+            "max_loss_diff",
+            "delta_diff",
+        ]
+    }
     for _ in range(n_sims):
         tau = int(rng.integers(1, T + 1))
-        thetas_h1, losses_h1 = simulate_run(rng, X, y, x_star, y_star, T, K, lr, batch, pool, oracle, insert_at=tau)
-        thetas_h0, losses_h0 = simulate_run(rng, X, y, x_star, y_star, T, K, lr, batch, pool, oracle, insert_at=None)
+        thetas_h1, losses_h1 = simulate_run(
+            rng, X, y, x_star, y_star, T, K, lr, batch, pool, oracle, insert_at=tau
+        )
+        thetas_h0, losses_h0 = simulate_run(
+            rng, X, y, x_star, y_star, T, K, lr, batch, pool, oracle, insert_at=None
+        )
 
         sgd_h1 = SeMISGD(thetas_h1, oracle, mu_g, sigma_inv, eta=eta_eff, n_batch=batch)
         sgd_h0 = SeMISGD(thetas_h0, oracle, mu_g, sigma_inv, eta=eta_eff, n_batch=batch)

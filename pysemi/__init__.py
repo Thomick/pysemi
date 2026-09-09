@@ -1,7 +1,8 @@
 """pysemi — Sequential Membership Inference attacks for models with multiple updates.
 
-Companion library to Michel, Basu, Kaufmann (2026), "Sequential Membership
-Inference attacks for auditing models with updates".
+Companion library to Michel, Basu and Kaufmann, "Sequential Membership Inference
+Attacks". The Laplace-noised mechanism in `pysemi.core.dp` is a library extension
+that the paper does not cover.
 """
 
 from typing import Optional, Sequence, Tuple
@@ -32,7 +33,7 @@ from .core.single_observation import (
 from .sgd.oracles import GradientOracle, LinearRegressionOracle, SoftmaxOracle
 from .sgd.semi_sgd import SeMISGD, SeMISGDMax, SeMISGDUnif
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 
 def _validate_empirical_mean_args(sigma: float, n: int) -> None:
@@ -81,18 +82,14 @@ class SeMIStar(_SeMIBase):
 
     def power(self, alpha: float, T: int, tau: int) -> float:
         """Asymptotic power at level α."""
-        return semi_star_power_theoretical(
-            alpha, self.mu, self.sigma, self.z_star, self.n, T, tau
-        )
+        return semi_star_power_theoretical(alpha, self.mu, self.sigma, self.z_star, self.n, T, tau)
 
 
 class SeMIMax(_SeMIBase):
     """SeMI^max statistic: ``max_t log LR_t`` (GLR for H_0 vs ⋃_t H_1^t)."""
 
     def log_lr(self, empirical_means: Sequence[float]) -> float:
-        stat, _ = compute_log_lr_max(
-            empirical_means, self.mu, self.sigma, self.z_star, self.n
-        )
+        stat, _ = compute_log_lr_max(empirical_means, self.mu, self.sigma, self.z_star, self.n)
         return stat
 
     def best_tau(self, empirical_means: Sequence[float]) -> int:
@@ -100,9 +97,7 @@ class SeMIMax(_SeMIBase):
         return self.log_lr_and_tau(empirical_means)[1]
 
     def log_lr_and_tau(self, empirical_means: Sequence[float]) -> Tuple[float, int]:
-        return compute_log_lr_max(
-            empirical_means, self.mu, self.sigma, self.z_star, self.n
-        )
+        return compute_log_lr_max(empirical_means, self.mu, self.sigma, self.z_star, self.n)
 
     def decide(self, empirical_means: Sequence[float], threshold: float) -> int:
         return 1 if self.log_lr(empirical_means) >= threshold else -1
@@ -122,9 +117,7 @@ class SeMIUnif(_SeMIBase):
     """SeMI^unif statistic: ``log (1/T) Σ_t LR_t`` (NP-optimal under τ ~ Unif([T]))."""
 
     def log_lr(self, empirical_means: Sequence[float]) -> float:
-        return compute_log_lr_unif(
-            empirical_means, self.mu, self.sigma, self.z_star, self.n
-        )
+        return compute_log_lr_unif(empirical_means, self.mu, self.sigma, self.z_star, self.n)
 
     def decide(self, empirical_means: Sequence[float], threshold: float) -> int:
         return 1 if self.log_lr(empirical_means) >= threshold else -1
@@ -162,21 +155,37 @@ class SeMIStarDP(SeMIStar):
 
     def log_lr(self, noisy_means: Sequence[float], tau: int) -> float:
         return compute_noisy_log_lr_tau(
-            noisy_means, self.mu, self.sigma, self.z_star, self.n, tau,
-            self.epsilon, self.sensitivity,
+            noisy_means,
+            self.mu,
+            self.sigma,
+            self.z_star,
+            self.n,
+            tau,
+            self.epsilon,
+            self.sensitivity,
         )
 
     def log_lr_max(self, noisy_means: Sequence[float]) -> float:
         stat, _ = compute_noisy_log_lr_max(
-            noisy_means, self.mu, self.sigma, self.z_star, self.n,
-            self.epsilon, self.sensitivity,
+            noisy_means,
+            self.mu,
+            self.sigma,
+            self.z_star,
+            self.n,
+            self.epsilon,
+            self.sensitivity,
         )
         return stat
 
     def log_lr_unif(self, noisy_means: Sequence[float]) -> float:
         return compute_noisy_log_lr_unif(
-            noisy_means, self.mu, self.sigma, self.z_star, self.n,
-            self.epsilon, self.sensitivity,
+            noisy_means,
+            self.mu,
+            self.sigma,
+            self.z_star,
+            self.n,
+            self.epsilon,
+            self.sensitivity,
         )
 
     def simulate(
@@ -187,8 +196,15 @@ class SeMIStarDP(SeMIStar):
     ) -> list:
         z = self.z_star if tau_star is not None else None
         return simulate_noisy_empirical_means(
-            self.mu, self.sigma, self.n, T, self.epsilon,
-            z, tau_star, self.sensitivity, rng,
+            self.mu,
+            self.sigma,
+            self.n,
+            T,
+            self.epsilon,
+            z,
+            tau_star,
+            self.sensitivity,
+            rng,
         )
 
     def power(self, alpha: float, T: int, tau: int) -> float:

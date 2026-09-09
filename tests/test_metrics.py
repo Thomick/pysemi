@@ -3,6 +3,7 @@
 import numpy as np
 
 from pysemi.metrics import (
+    bootstrap_epsilon_ci,
     clopper_pearson_interval,
     compute_auc,
     compute_balanced_accuracy,
@@ -13,7 +14,6 @@ from pysemi.metrics import (
     compute_epsilon_lower_bound_dkw_stratified,
     compute_power_at_fpr,
     compute_tpr_at_low_fpr,
-    bootstrap_epsilon_ci,
     subsample_epsilon_ci,
 )
 
@@ -78,7 +78,9 @@ def test_epsilon_stratified_wrappers():
     h1 = rng.standard_normal(2000) + 1.5
     fpr, tpr = compute_empirical_roc(h0, h1)
     e_cp = compute_epsilon_lower_bound_cp_stratified(fpr, tpr, delta=1e-4, n_per_stratum=200, T=10)
-    e_dkw = compute_epsilon_lower_bound_dkw_stratified(fpr, tpr, delta=1e-4, n_per_stratum=200, T=10)
+    e_dkw = compute_epsilon_lower_bound_dkw_stratified(
+        fpr, tpr, delta=1e-4, n_per_stratum=200, T=10
+    )
     assert np.isfinite(e_cp) and np.isfinite(e_dkw)
 
 

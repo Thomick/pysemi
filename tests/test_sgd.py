@@ -3,7 +3,6 @@
 import numpy as np
 import pytest
 
-import pysemi
 from pysemi.sgd import (
     LinearRegressionOracle,
     SeMISGD,
@@ -27,8 +26,16 @@ def test_plugin_lr_finite():
     sigma_inv = np.linalg.inv(sigma)
     delta_g = rng.standard_normal(d)
     m_star = float(delta_g @ sigma_inv @ delta_g)
-    out = plugin_log_lr_at_tau(theta_prev, theta_curr, eta=0.01, n_batch=n,
-                                mu_g=mu_g, sigma_inv=sigma_inv, delta_g=delta_g, m_star=m_star)
+    out = plugin_log_lr_at_tau(
+        theta_prev,
+        theta_curr,
+        eta=0.01,
+        n_batch=n,
+        mu_g=mu_g,
+        sigma_inv=sigma_inv,
+        delta_g=delta_g,
+        m_star=m_star,
+    )
     assert np.isfinite(out)
 
 
@@ -86,10 +93,14 @@ def test_semi_sgd_separates_h1_from_h0_on_linear_regression():
     y_star = 5.0
     oracle = LinearRegressionOracle()
 
-    bg_grads = np.array([
-        oracle.grad_at(rng.standard_normal(d) * 0.5, rng.standard_normal(d), float(rng.standard_normal()))
-        for _ in range(200)
-    ])
+    bg_grads = np.array(
+        [
+            oracle.grad_at(
+                rng.standard_normal(d) * 0.5, rng.standard_normal(d), float(rng.standard_normal())
+            )
+            for _ in range(200)
+        ]
+    )
     mu_g, sigma = estimate_gradient_stats(bg_grads, jitter=1e-2)
     sigma_inv = np.linalg.inv(sigma)
 
@@ -98,8 +109,16 @@ def test_semi_sgd_separates_h1_from_h0_on_linear_regression():
         theta0 = rng.standard_normal(d) * 0.1
         thetas_h1 = _sgd_run_linear(rng, theta0, x_star, y_star, T, n, d, eta, include_target=True)
         thetas_h0 = _sgd_run_linear(rng, theta0, x_star, y_star, T, n, d, eta, include_target=False)
-        h1_max.append(SeMISGDMax(thetas_h1, oracle, mu_g, sigma_inv, eta=eta, n_batch=n).log_lr(x_star, y_star))
-        h0_max.append(SeMISGDMax(thetas_h0, oracle, mu_g, sigma_inv, eta=eta, n_batch=n).log_lr(x_star, y_star))
+        h1_max.append(
+            SeMISGDMax(thetas_h1, oracle, mu_g, sigma_inv, eta=eta, n_batch=n).log_lr(
+                x_star, y_star
+            )
+        )
+        h0_max.append(
+            SeMISGDMax(thetas_h0, oracle, mu_g, sigma_inv, eta=eta, n_batch=n).log_lr(
+                x_star, y_star
+            )
+        )
     assert np.mean(h1_max) > np.mean(h0_max)
 
 
@@ -131,4 +150,6 @@ def test_semi_sgd_invalid_tau_raises():
 
 def test_semi_sgd_too_short_trajectory():
     with pytest.raises(ValueError):
-        SeMISGD([np.zeros(3)], LinearRegressionOracle(), np.zeros(3), np.eye(3), eta=0.1, n_batch=10)
+        SeMISGD(
+            [np.zeros(3)], LinearRegressionOracle(), np.zeros(3), np.eye(3), eta=0.1, n_batch=10
+        )

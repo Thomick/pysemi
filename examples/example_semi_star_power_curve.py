@@ -1,4 +1,4 @@
-"""SeMI* power curve vs. FinalObservation baseline (mirror of paper exp1).
+"""SeMI* power curve vs. FinalObservation baseline.
 
 At a fixed total sample size n·T and τ = T/2, plot theoretical and empirical
 power of SeMI* and of the FinalObservation snapshot baseline as T grows.
@@ -31,8 +31,10 @@ def main():
     n_sims = 800
     rng = np.random.default_rng(0)
 
-    print(f"{'T':>4} {'n':>5} {'tau':>4}  {'SeMI* (thy)':>11}  {'SeMI* (emp)':>11}  "
-          f"{'FinalObs (thy)':>14}  {'FinalObs (emp)':>14}")
+    print(
+        f"{'T':>4} {'n':>5} {'tau':>4}  {'SeMI* (thy)':>11}  {'SeMI* (emp)':>11}  "
+        f"{'FinalObs (thy)':>14}  {'FinalObs (emp)':>14}"
+    )
     for T in Ts:
         n = n_total // T
         tau = T // 2 + 1
@@ -49,8 +51,10 @@ def main():
             obs_h1.append(fo.log_lr(seq.simulate(T, tau_star=tau, rng=rng)[-1]))
         p_obs_emp = compute_tpr_at_low_fpr(np.array(obs_h0), np.array(obs_h1), target_fpr=alpha)
 
-        print(f"{T:>4d} {n:>5d} {tau:>4d}  {p_seq_thy:>11.3f}  {p_seq_emp:>11.3f}  "
-              f"{p_obs_thy:>14.3f}  {p_obs_emp:>14.3f}")
+        print(
+            f"{T:>4d} {n:>5d} {tau:>4d}  {p_seq_thy:>11.3f}  {p_seq_emp:>11.3f}  "
+            f"{p_obs_thy:>14.3f}  {p_obs_emp:>14.3f}"
+        )
 
     try:
         import matplotlib.pyplot as plt

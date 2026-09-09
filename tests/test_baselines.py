@@ -4,16 +4,16 @@ import numpy as np
 import pytest
 
 from pysemi.sgd import (
+    back_front_attack,
+    compute_loss_linear,
+    compute_loss_trajectory,
+    delta_attack_statistic,
     loss_diff_at_tau,
     loss_ratio_at_tau,
     max_loss_diff,
     max_loss_ratio,
     score_diff,
     score_ratio,
-    back_front_attack,
-    delta_attack_statistic,
-    compute_loss_linear,
-    compute_loss_trajectory,
 )
 
 

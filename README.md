@@ -1,9 +1,8 @@
 # pysemi
 
 Sequential Membership Inference (SeMI) attacks for auditing models that go
-through multiple updates. Library companion to the paper *Sequential
-Membership Inference attacks for auditing models with updates* (Michel,
-Basu, Kaufmann, 2026).
+through multiple updates. Library companion to *Sequential Membership
+Inference Attacks* (Michel, Basu, Kaufmann).
 
 Naming follows the paper:
 
@@ -62,7 +61,7 @@ parameter snapshots (θ_0, …, θ_T) saved at phase boundaries, plus a
 Three oracles ship with the library:
 
 - `SoftmaxOracle` — numpy last-layer multinomial-logistic oracle. Used for
-  the FashionMNIST / Purchase-100 audits of exp17.
+  the Fashion-MNIST and Purchase-100 audits of the paper.
 - `LinearRegressionOracle` — analytic ½(θᵀx − y)² gradient. The
   SGD-linear baseline of the paper is just `SeMISGD` with this oracle (no
   separate code path).
@@ -95,7 +94,7 @@ SeMISGDUnif(**common).log_lr(x_star, y_star)         # log mean exp(log LR_t)
 from pysemi.torch import TorchOracle, TorchLastLayerOracle, TrajectoryRecorder, estimate_gradient_stats_from_loader
 import pysemi
 
-# Audit only the last nn.Linear (matches exp17), or audit any parameter subset
+# Audit only the last nn.Linear (as the paper does), or audit any parameter subset
 oracle = TorchLastLayerOracle(model)
 # or:  TorchOracle(model, param_names=["classifier.weight", "classifier.bias"])
 
@@ -136,20 +135,20 @@ MLP audited via `TorchLastLayerOracle` over 6 phases of training.
 
 ## Examples (miniature paper reproductions)
 
-| Script                                      | Echoes  | What it shows                                     |
-| ------------------------------------------- | ------- | ------------------------------------------------- |
-| `example_semi_star_power_curve.py`          | exp1    | Power vs T at fixed n·T (SeMI* dominates)         |
-| `example_glr_unknown_tau.py`                | exp2    | SeMI^max vs SeMI^unif vs FinalObservation, random τ |
-| `example_dp_audit.py`                       | exp15   | DP SeMI* empirical ε lower bounds                 |
-| `example_semi_sgd_softmax.py`               | exp17   | SeMI^SGD on numpy softmax (last-layer audit)      |
-| `example_torch_nn_audit.py`                 | exp17   | SeMI^SGD on a PyTorch MLP, full pipeline          |
-| `example_torch_dpsgd_audit.py`              | exp17 + exp15 | DP-SGD training + per-method ε lower bounds |
+| Script                             | What it shows                                                  |
+| ---------------------------------- | -------------------------------------------------------------- |
+| `example_semi_star_power_curve.py` | Power vs T at fixed n·T: SeMI* stays flat, FinalObservation decays |
+| `example_glr_unknown_tau.py`       | SeMI^max vs SeMI^unif vs FinalObservation under random τ        |
+| `example_dp_audit.py`              | DP SeMI* empirical ε lower bounds vs. the true budget           |
+| `example_semi_sgd_softmax.py`      | SeMI^SGD on a numpy softmax last-layer audit                    |
+| `example_torch_nn_audit.py`        | SeMI^SGD on a PyTorch MLP, full pipeline                        |
+| `example_torch_dpsgd_audit.py`     | DP-SGD training with per-method ε lower bounds                  |
 
 ## Development
 
 ```bash
 pip install -e ".[dev,torch,analysis]"
-pytest             # 79 tests, ~6 s with torch
+pytest             # 89 tests, ~6 s with torch
 ruff check pysemi  # lint
 mypy pysemi        # type-check
 ```
@@ -159,10 +158,28 @@ Release notes are in [CHANGELOG.md](CHANGELOG.md).
 ## Stability
 
 pysemi is pre-1.0. The public API is everything exported from `pysemi`,
-`pysemi.core`, `pysemi.sgd`, `pysemi.metrics`, and `pysemi.torch`;
-underscored symbols are internal. We follow semantic versioning:
-breaking changes happen on minor bumps before 1.0, with migration notes
-in the changelog.
+`pysemi.core`, `pysemi.sgd`, `pysemi.metrics`, and `pysemi.torch`.
+Underscored symbols are internal. `pysemi.torch` is not imported by
+`import pysemi`, since torch is an optional dependency, so import it
+explicitly. We follow semantic versioning, so breaking changes happen on
+minor bumps before 1.0, with migration notes in the changelog.
+
+Not everything here is in the paper. The paper covers the noiseless
+empirical-mean mechanism, the SeMI^SGD extension and the DP-SGD audits.
+The Laplace-noised empirical-mean mechanism behind `SeMIStarDP` and
+`pysemi.core.dp` is a library extension, documented in the module
+docstring of `pysemi/core/dp.py`.
+
+## Citing
+
+```bibtex
+@unpublished{michel2026semi,
+  author = {Michel, Thomas and Basu, Debabrota and Kaufmann, Emilie},
+  title  = {Sequential Membership Inference Attacks},
+  year   = {2026},
+  note   = {Preprint},
+}
+```
 
 ## License
 

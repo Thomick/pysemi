@@ -31,3 +31,5 @@ htmlcov/
 .DS_Store
 *.swp
 *.swo
+
+examples/*.png

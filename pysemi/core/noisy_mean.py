@@ -50,10 +50,9 @@ def compute_log_lr_max(
 ) -> Tuple[float, int]:
     """SeMI^max statistic: ``(max_t log LR_t, argmax t)``."""
     T = len(empirical_means)
-    log_lrs = np.array([
-        compute_log_lr_tau(empirical_means, mu, sigma, z_star, n, t)
-        for t in range(1, T + 1)
-    ])
+    log_lrs = np.array(
+        [compute_log_lr_tau(empirical_means, mu, sigma, z_star, n, t) for t in range(1, T + 1)]
+    )
     best = int(np.argmax(log_lrs))
     return float(log_lrs[best]), best + 1
 
@@ -67,10 +66,9 @@ def compute_log_lr_unif(
 ) -> float:
     """SeMI^unif statistic: ``log (1/T) Σ_t LR_t``."""
     T = len(empirical_means)
-    log_lrs = np.array([
-        compute_log_lr_tau(empirical_means, mu, sigma, z_star, n, t)
-        for t in range(1, T + 1)
-    ])
+    log_lrs = np.array(
+        [compute_log_lr_tau(empirical_means, mu, sigma, z_star, n, t) for t in range(1, T + 1)]
+    )
     return float(logsumexp(log_lrs) - np.log(T))
 
 
