@@ -2,7 +2,7 @@
 
 Sequential Membership Inference (SeMI) attacks for auditing models that go
 through multiple updates. Library companion to *Sequential Membership
-Inference Attacks* (Michel, Basu, Kaufmann).
+Inference Attacks* (Michel, Basu, Kaufmann, NeurIPS 2026).
 
 Naming follows the paper:
 
@@ -173,11 +173,11 @@ docstring of `pysemi/core/dp.py`.
 ## Citing
 
 ```bibtex
-@unpublished{michel2026semi,
-  author = {Michel, Thomas and Basu, Debabrota and Kaufmann, Emilie},
-  title  = {Sequential Membership Inference Attacks},
-  year   = {2026},
-  note   = {Preprint},
+@inproceedings{michel2026semi,
+  author    = {Michel, Thomas and Basu, Debabrota and Kaufmann, Emilie},
+  title     = {Sequential Membership Inference Attacks},
+  booktitle = {Advances in Neural Information Processing Systems},
+  year      = {2026},
 }
 ```
 
